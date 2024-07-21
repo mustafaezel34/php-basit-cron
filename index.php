@@ -1,33 +1,28 @@
 <?php
+date_default_timezone_set('Europe/Istanbul');
+
+$baglanti = new mysqli("localhost", "user", "pass", "dbname");  
+if ($baglanti->connect_errno > 0) {
+    die("<b>Bağlantı Hatası:</b> " . $baglanti->connect_error);
+}
+$baglanti->set_charset("UTF8");
+
+
+
 // Zaman damgalarını almak için current timestamp kullanıyoruz
 $now = time();
 
 // URL'ler ve aralıkları içeren dizi
-$urls = [
-    [
-        'url' => 'https://websiteniz.com/url1.php',
-        'interval' => 60 // 1 dakika
-    ],
-    [
-         'url' => 'https://websiteniz.com/url2.php',
-        'interval' => 3600 // 1 saat
-    ]
-    // Daha fazla URL ve aralık eklemek için buraya yeni elemanlar ekleyebilirsiniz
-];
+$urls = [];
 
-// Dosyadan son çalıştırma zamanlarını oku
-$last_run_times = [];
-$last_run_file = 'urldb.txt';
+$cronsorgusu = $baglanti->query("SELECT cronurl, cronsaniye FROM cron");
 
-if (file_exists($last_run_file)) {
-    $lines = file($last_run_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
-    foreach ($lines as $line) {
-        list($url, $last_run_time) = explode('=', $line);
-        $last_run_times[$url] = (int)$last_run_time;
-    }
+while ($croncikti = $cronsorgusu->fetch_assoc()) {	
+    $urls[] = [
+        'url' => $croncikti['cronurl'],
+        'interval' => (int)$croncikti['cronsaniye']
+    ];
 }
-
 // URL'ye istek gönderme fonksiyonu
 function request_url($url) {
     $ch = curl_init();
@@ -49,29 +44,41 @@ function request_url($url) {
 }
 
 // URL çalıştırma fonksiyonu
-function run_url_if_needed($url_info, $now, &$last_run_times) {
+function run_url_if_needed($url_info, $now, $baglanti) {
     $url = $url_info['url'];
     $interval = $url_info['interval'];
-    $last_run_time = isset($last_run_times[$url]) ? $last_run_times[$url] : 0;
+
+    // Veritabanından son çalıştırma zamanını alın
+    $stmt = $baglanti->prepare("SELECT crondate FROM cron WHERE cronurl = ?");
+    $stmt->bind_param('s', $url);
+    $stmt->execute();
+    $stmt->store_result();
+    $stmt->bind_result($crondate);
+    $stmt->fetch();
+
+    if ($stmt->num_rows > 0) {
+        $last_run_time = strtotime($crondate);
+    } 
+
+    $stmt->close();
 
     if (($now - $last_run_time) >= $interval) {
         // URL'yi çalıştır
         request_url($url);
 
         // Son çalıştırma zamanını güncelle
-        $last_run_times[$url] = $now;
+        $update_stmt = $baglanti->prepare("UPDATE cron SET crondate = ? WHERE cronurl = ?");
+        $crondate = date('Y-m-d H:i:s', $now);
+        $update_stmt->bind_param('ss', $crondate, $url);
+        $update_stmt->execute();
+        $update_stmt->close();
     }
 }
 
 // Her URL için kontrol ve çalıştırma
 foreach ($urls as $url_info) {
-    run_url_if_needed($url_info, $now, $last_run_times);
+    run_url_if_needed($url_info, $now, $baglanti);
 }
 
-// Son çalıştırma zamanlarını dosyaya yaz
-$lines = [];
-foreach ($last_run_times as $url => $last_run_time) {
-    $lines[] = "$url=$last_run_time";
-}
-file_put_contents($last_run_file, implode("\n", $lines));
+$baglanti->close();
 ?>
