@@ -1,13 +1,12 @@
-```markdown
-# PHP Cron İş Yöneticisi
+## PHP Cron İş Yöneticisi
 
 Bu basit PHP betiği, MySQL veritabanını kullanarak cron işlerinizi yönetmenize yardımcı olur. Betik, belirtilen aralıklarda URL'lere istek gönderir ve son çalıştırma zamanını veritabanında günceller.
 
 ## Kurulum
 
 1. **Veritabanı Oluşturma:** MySQL veritabanınızda "cron" adında bir tablo oluşturun ve aşağıdaki sütunları ekleyin:
+```markdown
 
-   ```sql
    CREATE TABLE `cron` (
        `cronurl` varchar(255) NOT NULL,
        `crondate` datetime NOT NULL,
@@ -37,7 +36,7 @@ Bu basit PHP betiği, MySQL veritabanını kullanarak cron işlerinizi yönetmen
 4. **Cron Job Oluşturma:** `cron.php` dosyasını sunucunuza yükleyin ve düzenli aralıklarla çalışacak bir cron işi ayarlayın. Örneğin, her dakika çalıştırmak için:
 
    ```bash
-   * * * * * php /path/to/cron.php
+   * * * * * php /path/to/index.php
    ```
 
 ## Nasıl Çalışır?
